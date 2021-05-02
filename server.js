@@ -60,7 +60,7 @@ app.post('/upload', async (req, res) => {
 
 })
 
-const PORT = 5500 || process.env.PORT
+const PORT = process.env.PORT || 8080
 
 // START SERVER
 app.listen(PORT, (err) => {
