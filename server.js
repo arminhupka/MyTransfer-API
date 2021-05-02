@@ -1,7 +1,8 @@
-const express = require('express')
-const fs = require('fs')
-const cors = require('cors')
+const express = require('express');
+const fs = require('fs');
+const cors = require('cors');
 const fileUpload = require('express-fileupload');
+const nodemailer = require('nodemailer');
 const dotenv = require('dotenv');
 
 dotenv.config()
@@ -10,6 +11,16 @@ const app = express();
 
 const PORT = process.env.PORT || 8080
 const REMOVE_TIME = process.env.REMOVE_TIME || 5000
+
+let mailTransporter = nodemailer.createTransport({
+    host: process.env.MAIL_HOST,
+    port: process.env.MAIL_PORT,
+    secure: true,
+    auth: {
+        user: process.env.MAIL_LOGIN,
+        pass: process.env.MAIL_PASS
+    },
+});
 
 
 app.use(cors());
@@ -51,6 +62,22 @@ app.post('/upload', async (req, res) => {
                 console.log(`${file.name} removed`)
             });
         }, REMOVE_TIME)
+
+        try {
+            const mail = await mailTransporter.sendMail({
+                from: '"MyTransfer 🔥" <noreply@kolorvision.pl>',
+                to: emailTo,
+                subject: "You have file to download",
+                html: `<b>${uploadPath}</b>`
+            })
+            console.log('EMAIL SENT!')
+            console.log(mail)
+        } catch (err) {
+            console.log(err)
+            return res.status(500).json({
+                error: 'Server Error'
+            })
+        }
 
         return res.status(200).json({
             message: 'File uploaded',
