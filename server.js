@@ -2,9 +2,14 @@ const express = require('express')
 const fs = require('fs')
 const cors = require('cors')
 const fileUpload = require('express-fileupload');
+const dotenv = require('dotenv');
 
+dotenv.config()
 
 const app = express();
+
+const PORT = process.env.PORT || 8080
+const REMOVE_TIME = process.env.REMOVE_TIME || 5000
 
 
 app.use(cors());
@@ -45,7 +50,7 @@ app.post('/upload', async (req, res) => {
             fs.unlink(uploadPath, () => {
                 console.log(`${file.name} removed`)
             });
-        }, 1000)
+        }, REMOVE_TIME)
 
         return res.status(200).json({
             message: 'File uploaded',
@@ -60,7 +65,6 @@ app.post('/upload', async (req, res) => {
 
 })
 
-const PORT = process.env.PORT || 8080
 
 // START SERVER
 app.listen(PORT, (err) => {
