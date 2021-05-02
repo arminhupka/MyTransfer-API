@@ -11,6 +11,7 @@ const app = express();
 
 const PORT = process.env.PORT || 8080
 const REMOVE_TIME = process.env.REMOVE_TIME || 5000
+const HOST = process.env.HEROKU_APP_NAME || `http://localhost:${PORT}`
 
 let mailTransporter = nodemailer.createTransport({
     host: process.env.MAIL_HOST,
@@ -68,7 +69,7 @@ app.post('/upload', async (req, res) => {
                 from: '"MyTransfer 🔥" <noreply@kolorvision.pl>',
                 to: emailTo,
                 subject: "You have file to download",
-                html: `<b>${uploadPath}</b>`
+                html: `<b>${HOST}${uploadPath}</b>`
             })
             console.log('EMAIL SENT!')
             console.log(mail)
