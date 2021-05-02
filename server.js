@@ -8,12 +8,12 @@ const app = express();
 
 
 app.use(cors());
-app.use(fileUpload());
 app.use(express.json());
+app.use(fileUpload());
 
 // UPLOAD FILES
 app.get('/', (req, res) => {
-    return res.status(200).send('My Transfer API');
+    res.send('My Transfer API')
 })
 app.post('/upload', async (req, res) => {
 
