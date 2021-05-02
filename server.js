@@ -64,5 +64,5 @@ const PORT = 5500 || process.env.PORT
 
 // START SERVER
 app.listen(PORT, (err) => {
-    console.log(`SERVER RUNNING ON ${PORT}`)
+    console.log(`SERVER RUNNING ON ${PORT}!`)
 })
