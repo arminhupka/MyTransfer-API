@@ -12,6 +12,9 @@ app.use(fileUpload());
 app.use(express.json());
 
 // UPLOAD FILES
+app.get('/', (req, res) => {
+    return res.status(200).send('My Transfer API');
+})
 app.post('/upload', async (req, res) => {
 
     const {name, description, emailTo} = req.body;
@@ -45,7 +48,8 @@ app.post('/upload', async (req, res) => {
         }, 1000)
 
         return res.status(200).json({
-            message: 'File uploaded'
+            message: 'File uploaded',
+            file: uploadPath
         })
     } catch (err) {
         console.log(err)
