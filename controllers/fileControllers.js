@@ -63,7 +63,7 @@ exports.uploadFile = async (req, res) => {
             from: '"MyTransfer 🔥" <noreply@kolorvision.pl>',
             to: emailTo,
             subject: "You have file to download",
-            html: `<b>${HOST}${uploadPath}</b>`
+            html: `<b>https://my-transfer.netlify.com/${uploadPath}</b>`
         })
             .then(() => {
                 console.log('EMAIL SENT')
