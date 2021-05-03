@@ -21,7 +21,7 @@ app.use(express.json());
 app.use(fileUpload());
 
 
-app.use('/uploads', express.static(`${__dirname}/uploads`))
+app.use('app/uploads', express.static(`${__dirname}/uploads`))
 app.use(fileRoute)
 
 
