@@ -1,12 +1,11 @@
-const fs = require('fs');
+const aws = require('aws-sdk');
 const nodemailer = require('nodemailer');
 const {nanoid} = require('nanoid');
 const dotenv = require('dotenv');
 
 dotenv.config()
 
-const PORT = process.env.PORT || 8080;
-const HOST = process.env.HEROKU_APP_NAME || `http://localhost:${PORT}`
+aws.config.region = 'eu-central-1'
 
 const fileSchema = require('../models/fileModel');
 
@@ -20,92 +19,12 @@ let mailTransporter = nodemailer.createTransport({
     },
 });
 
-exports.uploadFile = async (req, res) => {
-
-    const {name, description, emailTo} = req.body;
-
-    let file;
-    let uploadPath;
-    let doc;
-    let slug = nanoid(5);
-
-    // check if inputs are filled
-    if (!name || !description || !emailTo) {
-        return res.status(400).json({
-            error: 'All input must be filled'
-        })
-    }
-
-    // check if file is attached
-    if (!req.files || Object.keys(req.files).length === 0) {
-        return res.status(400).json({
-            error: 'No files to upload'
-        })
-    }
-
-    file = req.files.file;
-    uploadPath = `${process.cwd()}/uploads/${file.name}`
-
-    try {
-
-        await file.mv(uploadPath);
-
-        doc = new fileSchema({
-            slug,
-            dlLink: `${HOST}${uploadPath}`
-        })
-
-        // save info to db
-        await doc.save();
-
-        // send email
-        await mailTransporter.sendMail({
-            from: '"MyTransfer 🔥" <noreply@kolorvision.pl>',
-            to: emailTo,
-            subject: "You have file to download",
-            html: `<b>https://my-transfer.netlify.com/${uploadPath}</b>`
-        })
-            .then(() => {
-                console.log('EMAIL SENT')
-            })
-            .catch(err => {
-                console.log('ERROR DURING SENDING EMAIL')
-            })
-
-        // remove file
-        setTimeout(() => {
-            doc.deleteOne({slug: doc.slug})
-                .then(() => {
-                    console.log('doc removed')
-                })
-                .catch(err => {
-                    console.log(err)
-                })
-            fs.unlink(uploadPath, () => {
-                console.log(`${file.name} removed`)
-            });
-        }, process.env.TIME_TO_REMOVE)
-
-        return res.status(200).json({
-            message: 'File uploaded',
-            slug
-        })
-
-
-    } catch (err) {
-        console.log(err)
-        return res.status(500).json({
-            error: 'Server Error'
-        })
-    }
-}
-
 exports.getFile = async (req, res) => {
     const {slug} = req.params
 
     const file = await fileSchema.findOne({slug: slug}).select("-__v");
 
-    if(!file) {
+    if (!file) {
         return res.status(404).json({
             message: 'File not found'
         })
@@ -114,4 +33,105 @@ exports.getFile = async (req, res) => {
     return res.status(200).json({
         file
     })
+}
+
+exports.uploadS3 = async (req, res) => {
+
+    const {name, description, emailTo} = req.body;
+
+
+    let doc;
+    let slug = nanoid(10);
+
+    const s3 = new aws.S3({
+        accessKeyId: process.env.S3_KEY_ID,
+        secretAccessKey: process.env.S3_ACCESS_KEY
+    });
+
+    const fileName = req.files.file.name;
+    const fileType = req.files.file.mimetype;
+    const fileBuffer = req.files.file.data;
+
+    const s3Params = {
+        Bucket: process.env.S3_BUCKET,
+        Key: `${slug}/${fileName}`,
+        Expires: 60,
+        ContentType: fileType,
+        ACL: 'public-read',
+        Body: fileBuffer
+    };
+
+    await s3.upload(s3Params, async (error, data) => {
+
+        if (error) {
+            console.log(err)
+            return res.status(500).send('Server Error')
+        }
+
+        doc = new fileSchema({
+            slug,
+            dlLink: data.Location
+        })
+
+        // save info to db
+        await doc.save();
+
+        // send email
+        await mailTransporter.sendMail({
+            from: '"MyTransfer" <noreply@kolorvision.pl>',
+            to: emailTo,
+            subject: `${name} send you file.`,
+            html: `<b>${data.Location}</b>`
+        })
+            .then(() => {
+                console.log('EMAIL SENT')
+            })
+            .catch(err => {
+                console.log(err)
+                console.log('ERROR DURING SENDING EMAIL')
+            })
+
+        return res.status(200).json({
+            message: "File uploaded"
+        })
+
+    })
+
+    // remove folder with content after process.env.TIME_TO_REMOVE time
+    const s3deleteParams = {
+        Bucket: process.env.S3_BUCKET,
+    }
+
+    setTimeout(async () => {
+        await doc.deleteOne({slug: doc.slug})
+            .then(() => {
+                console.log('doc removed')
+            })
+            .catch(err => {
+                console.log(err)
+            })
+
+        await s3.listObjectsV2(s3deleteParams, (err, data) => {
+            if (err) {
+                console.log(err)
+                return res.status(500).json({
+                    error: "Server Error"
+                })
+            }
+
+            s3deleteParams.Delete = {Objects: []}
+
+            data.Contents.forEach((content) => {
+                s3deleteParams.Delete.Objects.push({Key: content.Key});
+            });
+
+            s3.deleteObjects(s3deleteParams, (err) => {
+                if (err) {
+                    console.log(err, err.stack)
+                }
+
+                console.log('FILE REMOVED')
+            })
+        })
+    }, process.env.TIME_TO_REMOVE);
 }
