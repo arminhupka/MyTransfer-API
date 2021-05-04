@@ -92,7 +92,8 @@ exports.uploadS3 = async (req, res) => {
             })
 
         return res.status(200).json({
-            message: "File uploaded"
+            message: "File uploaded",
+            slug: doc.slug
         })
 
     })
