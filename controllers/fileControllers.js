@@ -1,3 +1,4 @@
+const {validationResult} = require('express-validator');
 const aws = require('aws-sdk');
 const nodemailer = require('nodemailer');
 const {nanoid} = require('nanoid');
@@ -36,6 +37,16 @@ exports.getFile = async (req, res) => {
 }
 
 exports.uploadS3 = async (req, res) => {
+
+    const errors = validationResult(req);
+
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
+    if(!req.files) {
+        return res.status(400).json({ error: "No file to send" });
+    }
 
     const {name, description, emailTo} = req.body;
 
@@ -110,6 +121,9 @@ exports.uploadS3 = async (req, res) => {
             })
             .catch(err => {
                 console.log(err)
+                return res.status(500).json({
+                    error: "Server Error"
+                })
             })
 
         await s3.listObjectsV2(s3deleteParams, (err, data) => {
@@ -129,6 +143,9 @@ exports.uploadS3 = async (req, res) => {
             s3.deleteObjects(s3deleteParams, (err) => {
                 if (err) {
                     console.log(err, err.stack)
+                    return res.status(500).json({
+                        error: "Server Error"
+                    })
                 }
 
                 console.log('FILE REMOVED')
